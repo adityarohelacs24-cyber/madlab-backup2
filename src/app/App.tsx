@@ -61,26 +61,26 @@ export default function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-9 gap-2">
-            <TabsTrigger value="overview">
+          <TabsList className="w-full grid-cols-none justify-start gap-2 overflow-x-auto lg:grid lg:grid-cols-9 lg:justify-center lg:overflow-visible">
+            <TabsTrigger value="overview" className="flex-none lg:flex-1">
               <BookOpen className="w-4 h-4 mr-2" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="group1">Group I</TabsTrigger>
-            <TabsTrigger value="group2">Group II</TabsTrigger>
-            <TabsTrigger value="group3">Group III</TabsTrigger>
-            <TabsTrigger value="group4">Group IV</TabsTrigger>
-            <TabsTrigger value="group5">Group V</TabsTrigger>
-            <TabsTrigger value="group6">Group VI</TabsTrigger>
-            <TabsTrigger value="anions">
+            <TabsTrigger value="group1" className="flex-none lg:flex-1">Group I</TabsTrigger>
+            <TabsTrigger value="group2" className="flex-none lg:flex-1">Group II</TabsTrigger>
+            <TabsTrigger value="group3" className="flex-none lg:flex-1">Group III</TabsTrigger>
+            <TabsTrigger value="group4" className="flex-none lg:flex-1">Group IV</TabsTrigger>
+            <TabsTrigger value="group5" className="flex-none lg:flex-1">Group V</TabsTrigger>
+            <TabsTrigger value="group6" className="flex-none lg:flex-1">Group VI</TabsTrigger>
+            <TabsTrigger value="anions" className="flex-none lg:flex-1">
               <Atom className="w-4 h-4 mr-2" />
               Anions
             </TabsTrigger>
-            <TabsTrigger value="organic">
+            <TabsTrigger value="organic" className="flex-none lg:flex-1">
               <TestTube2 className="w-4 h-4 mr-2" />
               Organic
             </TabsTrigger>
-            <TabsTrigger value="tips">Tips</TabsTrigger>
+            <TabsTrigger value="tips" className="flex-none lg:flex-1">Tips</TabsTrigger>
           </TabsList>
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
