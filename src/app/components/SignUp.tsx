@@ -1,0 +1,155 @@
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Alert, AlertDescription } from './ui/alert';
+import { FlaskConical, AlertCircle, CheckCircle } from 'lucide-react';
+
+export function SignUp() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
+  const { signUp } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validation
+    if (!email || !password || !fullName || !confirmPassword) {
+      setError('All fields are required');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+
+    const result = await signUp(email, password, fullName);
+
+    if (result.error) {
+      setError(result.error.message);
+      setLoading(false);
+    } else {
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/signin');
+      }, 2000);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
+      <Card className="w-full max-w-md p-8">
+        <div className="flex items-center justify-center mb-6">
+          <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+            <FlaskConical className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="ml-3 text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            ChemLab
+          </h1>
+        </div>
+
+        <h2 className="text-2xl font-bold text-center mb-2">Create Account</h2>
+        <p className="text-gray-600 text-center mb-6">Join us to start learning chemistry</p>
+
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert className="mb-4 border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Account created! Redirecting to sign in...
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="fullName">Full Name</Label>
+            <Input
+              id="fullName"
+              type="text"
+              placeholder="John Doe"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            disabled={loading}
+          >
+            {loading ? 'Creating Account...' : 'Sign Up'}
+          </Button>
+        </form>
+
+        <p className="text-center text-gray-600 mt-6">
+          Already have an account?{' '}
+          <Link to="/signin" className="text-blue-600 hover:text-blue-700 font-semibold">
+            Sign In
+          </Link>
+        </p>
+      </Card>
+    </div>
+  );
+}

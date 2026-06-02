@@ -1,16 +1,29 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ReactionCard } from "./components/ReactionCard";
 import { cationTests, anionTests } from "./data/saltAnalysisData";
-import { FlaskConical, TestTube2, Atom, BookOpen } from "lucide-react";
+import { FlaskConical, TestTube2, Atom, BookOpen, LogOut, User } from "lucide-react";
 import { Card } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
 import { organicReactions } from "./data/organicReactions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./components/ui/dropdown-menu";
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [darkMode, setDarkMode] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const toggleDarkMode = () => {
     const next = !darkMode;
@@ -20,6 +33,11 @@ export default function App() {
     } else {
       document.documentElement.classList.remove("dark");
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/signin");
   };
 
   return (
@@ -44,15 +62,47 @@ export default function App() {
     </div>
   </div>
 
-  {/* RIGHT: Dark Mode Toggle */}
-  <button
-    onClick={toggleDarkMode}
-    className="px-4 py-2 rounded-lg border text-sm 
-               bg-white text-black 
-               dark:bg-gray-800 dark:text-white dark:border-gray-600"
-  >
-    {darkMode ? "☀️ Light" : "🌙 Dark"}
-  </button>
+  {/* RIGHT: Dark Mode Toggle + User Menu */}
+  <div className="flex items-center gap-3">
+    <button
+      onClick={toggleDarkMode}
+      className="px-4 py-2 rounded-lg border text-sm 
+                 bg-white text-black 
+                 dark:bg-gray-800 dark:text-white dark:border-gray-600"
+    >
+      {darkMode ? "☀️ Light" : "🌙 Dark"}
+    </button>
+
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-full w-10 h-10 p-0"
+        >
+          <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <span className="text-white font-semibold text-sm">
+              {user?.email?.[0]?.toUpperCase() || "U"}
+            </span>
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <div className="px-2 py-1.5 text-sm font-medium">
+          {user?.email}
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem disabled className="text-xs text-gray-500">
+          <User className="w-4 h-4 mr-2" />
+          Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSignOut}>
+          <LogOut className="w-4 h-4 mr-2" />
+          Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
 
 </div>
         </div>
