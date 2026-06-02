@@ -121,23 +121,19 @@ export async function seedReactions() {
     // ========== ANION TESTS ==========
     if (anionTests) {
       id = 1;
-      Object.entries(anionTests).forEach(([key, tests]: any) => {
-        if (Array.isArray(tests)) {
-          tests.forEach((reaction: any) => {
-            reactionsToInsert.push({
-              id: `anion_${key}_${id++}`,
-              title: reaction.title || reaction.anion,
-              description: reaction.theory || 'Anion identification test',
-              group_number: null,
-              category: 'anion',
-              reactants: reaction.anion,
-              products: JSON.stringify(reaction.tests || []),
-              observations: JSON.stringify(reaction.steps || []),
-              equations: reaction.equation || '',
-              precautions: reaction.precautions || '',
-            });
-          });
-        }
+      anionTests.forEach((reaction: any) => {
+        reactionsToInsert.push({
+          id: `anion_${id++}`,
+          title: reaction.title || reaction.anion,
+          description: reaction.theory || 'Anion identification test',
+          group_number: null,
+          category: 'anion',
+          reactants: reaction.anion,
+          products: JSON.stringify(reaction.confirmatoryTests || []),
+          observations: JSON.stringify(reaction.steps || []),
+          equations: reaction.equation || '',
+          precautions: reaction.precautions || '',
+        });
       });
     }
 

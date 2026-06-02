@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { TestTube } from "./TestTube";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { Badge } from "./ui/badge";
-import { Play, RotateCcw } from "lucide-react";
+import { Play, RotateCcw, Heart, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 
 interface ReactionStep {
@@ -22,6 +22,7 @@ interface ConfirmatoryTest {
 }
 
 interface ReactionCardProps {
+  id: string;
   title: string;
   cation?: string;
   anion?: string;
@@ -30,9 +31,14 @@ interface ReactionCardProps {
   confirmatoryTests?: ConfirmatoryTest[];
   equation?: string;
   theory?: string;
+  isBookmarked?: boolean;
+  isCompleted?: boolean;
+  onToggleBookmark?: () => void;
+  onToggleCompleted?: () => void;
 }
 
 export function ReactionCard({
+  id,
   title,
   cation,
   anion,
@@ -41,6 +47,10 @@ export function ReactionCard({
   confirmatoryTests,
   equation,
   theory,
+  isBookmarked = false,
+  isCompleted = false,
+  onToggleBookmark,
+  onToggleCompleted,
 }: ReactionCardProps) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -74,7 +84,7 @@ export function ReactionCard({
 
         {/* Header */}
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1">
             <h3 className="font-semibold text-lg">{title}</h3>
             <div className="flex gap-2 mt-2">
               {group && <Badge variant="secondary">{group}</Badge>}
@@ -82,6 +92,17 @@ export function ReactionCard({
               {anion && <Badge className="bg-purple-100 text-purple-700">{anion}</Badge>}
             </div>
           </div>
+          {onToggleBookmark && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleBookmark}
+              className="text-gray-400 hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 p-2 h-9 w-9 rounded-full shrink-0"
+              title={isBookmarked ? "Remove Bookmark" : "Bookmark Reaction"}
+            >
+              <Heart className={`w-5 h-5 ${isBookmarked ? "fill-red-500 text-red-500" : ""}`} />
+            </Button>
+          )}
         </div>
 
         {/* Visualization */}
@@ -120,8 +141,21 @@ export function ReactionCard({
             <Play className="w-4 h-4 mr-2" />
             Run Reaction
           </Button>
+          {onToggleCompleted && (
+            <Button
+              onClick={onToggleCompleted}
+              size="sm"
+              className={isCompleted 
+                ? "bg-green-100 hover:bg-green-200 text-green-800 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:text-green-400 border-green-200 dark:border-green-800" 
+                : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}
+              variant="outline"
+            >
+              <CheckCircle2 className={`w-4 h-4 ${isCompleted ? "fill-green-600/20 text-green-600 dark:text-green-400" : "mr-1"}`} />
+              {isCompleted ? "Completed" : "Mark Done"}
+            </Button>
+          )}
           <Button onClick={handleReset} variant="outline" size="sm"
-            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
+            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
             <RotateCcw className="w-4 h-4" />
           </Button>
         </div>

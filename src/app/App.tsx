@@ -4,26 +4,62 @@ import { useAuth } from "../contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ReactionCard } from "./components/ReactionCard";
 import { cationTests, anionTests } from "./data/saltAnalysisData";
-import { FlaskConical, TestTube2, Atom, BookOpen, LogOut, User } from "lucide-react";
+import { FlaskConical, TestTube2, Atom, BookOpen, LogOut, User, Heart, CheckCircle2 } from "lucide-react";
 import { Card } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { organicReactions } from "./data/organicReactions";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./components/ui/dropdown-menu";
+import { useUserProgress } from "../hooks/useUserProgress";
+// Custom state-based dropdown menu replaces Radix dropdown to ensure compatibility inside WebView
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
   const [darkMode, setDarkMode] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dailyGoal, setDailyGoal] = useState("5");
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const {
+    progress,
+    loading: progressLoading,
+    toggleBookmark,
+    markAsCompleted,
+    isBookmarked,
+    isCompleted
+  } = useUserProgress();
+
+  // Mapped reactions with consistent IDs
+  const group1Mapped = cationTests.group1.map((r, i) => ({ ...r, id: `cation_group1_${i + 1}` }));
+  const group2Mapped = cationTests.group2.map((r, i) => ({ ...r, id: `cation_group2_${i + 1}` }));
+  const group3Mapped = cationTests.group3.map((r, i) => ({ ...r, id: `cation_group3_${i + 1}` }));
+  const group4Mapped = cationTests.group4.map((r, i) => ({ ...r, id: `cation_group4_${i + 1}` }));
+  const group5Mapped = cationTests.group5.map((r, i) => ({ ...r, id: `cation_group5_${i + 1}` }));
+  const group6Mapped = cationTests.group6.map((r, i) => ({ ...r, id: `cation_group6_${i + 1}` }));
+  const anionsMapped = anionTests.map((r, i) => ({ ...r, id: `anion_${i + 1}` }));
+  const organicsMapped = organicReactions.map((r, i) => ({
+    ...r,
+    id: `organic_${r.category.replace(/\s+/g, '_').toLowerCase()}_${i + 1}`
+  }));
+
+  const allReactions = [
+    ...group1Mapped,
+    ...group2Mapped,
+    ...group3Mapped,
+    ...group4Mapped,
+    ...group5Mapped,
+    ...group6Mapped,
+    ...anionsMapped,
+    ...organicsMapped
+  ];
+
+  const totalReactions = allReactions.length;
+  const completedCount = Array.from(progress.values()).filter(p => p.completed).length;
+  const bookmarkedCount = Array.from(progress.values()).filter(p => p.bookmarked).length;
+  const completionPercentage = totalReactions > 0 ? Math.round((completedCount / totalReactions) * 100) : 0;
 
   const toggleDarkMode = () => {
     const next = !darkMode;
@@ -54,7 +90,7 @@ export default function App() {
     </div>
     <div>
       <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-        ChemLab Interactive
+        Reacto Interactive
       </h1>
       <p className="text-sm text-gray-600 dark:text-gray-300">
         Interactive Chemistry Learning for JEE Students
@@ -73,35 +109,56 @@ export default function App() {
       {darkMode ? "☀️ Light" : "🌙 Dark"}
     </button>
 
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-full w-10 h-10 p-0"
-        >
-          <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {user?.email?.[0]?.toUpperCase() || "U"}
-            </span>
-          </div>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <div className="px-2 py-1.5 text-sm font-medium">
-          {user?.email}
+    <div className="relative">
+      <Button
+        variant="outline"
+        size="sm"
+        className="rounded-full w-10 h-10 p-0 overflow-hidden"
+        onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+      >
+        <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          <span className="text-white font-semibold text-sm">
+            {user?.email?.[0]?.toUpperCase() || "U"}
+          </span>
         </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled className="text-xs text-gray-500">
-          <User className="w-4 h-4 mr-2" />
-          Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSignOut}>
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </Button>
+      
+      {profileDropdownOpen && (
+        <>
+          {/* Backdrop overlay */}
+          <div 
+            className="fixed inset-0 z-40 cursor-default" 
+            onClick={() => setProfileDropdownOpen(false)}
+          />
+          <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-50 py-1 text-sm text-gray-700 dark:text-gray-200 animate-in fade-in slide-in-from-top-1 duration-100">
+            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700 font-medium truncate text-xs text-gray-500 dark:text-gray-400">
+              {user?.email}
+            </div>
+            <button
+              onClick={() => {
+                setProfileDropdownOpen(false);
+                setSettingsOpen(true);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer"
+            >
+              <User className="w-4 h-4 text-gray-400" />
+              Profile & Settings
+            </button>
+            <hr className="border-gray-100 dark:border-gray-700" />
+            <button
+              onClick={() => {
+                setProfileDropdownOpen(false);
+                handleSignOut();
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 flex items-center gap-2 cursor-pointer font-semibold"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   </div>
 
 </div>
@@ -111,7 +168,7 @@ export default function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="w-full grid-cols-none justify-start gap-2 overflow-x-auto lg:grid lg:grid-cols-9 lg:justify-center lg:overflow-visible">
+          <TabsList className="w-full justify-start gap-2 overflow-x-auto lg:flex lg:flex-wrap lg:justify-center">
             <TabsTrigger value="overview" className="flex-none lg:flex-1">
               <BookOpen className="w-4 h-4 mr-2" />
               Overview
@@ -130,13 +187,54 @@ export default function App() {
               <TestTube2 className="w-4 h-4 mr-2" />
               Organic
             </TabsTrigger>
+            <TabsTrigger value="bookmarks" className="flex-none lg:flex-1 text-red-500 dark:text-red-400 font-semibold">
+              <Heart className="w-4 h-4 mr-2 fill-current" />
+              Bookmarks ({bookmarkedCount})
+            </TabsTrigger>
             <TabsTrigger value="tips" className="flex-none lg:flex-1">Tips</TabsTrigger>
           </TabsList>
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-<Card className="p-4 hover:shadow-lg transition-shadow cursor-pointer 
-                 bg-white dark:bg-gray-800 
-                 border border-gray-200 dark:border-gray-600">           <h2 className="text-2xl font-bold mb-4">Welcome to Chemistry Lab</h2>
+            {/* Progress stats card */}
+            <Card className="p-6 bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg border-0">
+              <h2 className="text-2xl font-bold mb-2">Your Learning Progress</h2>
+              <p className="text-blue-100 mb-6">
+                Keep practicing reactions to master JEE Chemistry.
+              </p>
+              
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+                  <div className="text-3xl font-extrabold">{totalReactions}</div>
+                  <div className="text-xs text-blue-100 font-medium mt-1">Total Reactions</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+                  <div className="text-3xl font-extrabold">{completedCount}</div>
+                  <div className="text-xs text-blue-100 font-medium mt-1">Completed</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
+                  <div className="text-3xl font-extrabold">{bookmarkedCount}</div>
+                  <div className="text-xs text-blue-100 font-medium mt-1">Bookmarked</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm font-semibold">
+                  <span>Syllabus Completion</span>
+                  <span>{completionPercentage}%</span>
+                </div>
+                <div className="h-2.5 w-full bg-white/20 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-white transition-all duration-500 ease-out" 
+                    style={{ width: `${completionPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4 hover:shadow-lg transition-shadow cursor-pointer 
+                             bg-white dark:bg-gray-800 
+                             border border-gray-200 dark:border-gray-600">
+              <h2 className="text-2xl font-bold mb-4">Welcome to Reacto</h2>
               <p className="text-lg opacity-90 mb-4">
                 Master Chemical Reactions through interactive visualizations and step-by-step learning.
               </p>
@@ -273,8 +371,15 @@ export default function App() {
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {cationTests.group1.map((test, index) => (
-                <ReactionCard key={index} {...test} />
+              {group1Mapped.map((test) => (
+                <ReactionCard 
+                  key={test.id} 
+                  {...test} 
+                  isBookmarked={isBookmarked(test.id)}
+                  isCompleted={isCompleted(test.id)}
+                  onToggleBookmark={() => toggleBookmark(test.id)}
+                  onToggleCompleted={() => markAsCompleted(test.id)}
+                />
               ))}
             </div>
           </TabsContent>
@@ -286,26 +391,33 @@ export default function App() {
               <p className="text-gray-600 dark:text-gray-300 mb-4">
                 Cations precipitated by H₂S in acidic medium (dil. HCl). Divided into subgroups based on solubility in yellow ammonium sulfide.
               </p>
-<div className="flex gap-2 flex-wrap">
-  <Badge>IIA</Badge>
-  <Badge>Pb²⁺</Badge>
-  <Badge>Cu²⁺</Badge>
-  <Badge>Bi³⁺</Badge>
-  <Badge>Cd²⁺</Badge>
-  <Badge>Hg²⁺</Badge>
-</div>
+              <div className="flex gap-2 flex-wrap">
+                <Badge>IIA</Badge>
+                <Badge>Pb²⁺</Badge>
+                <Badge>Cu²⁺</Badge>
+                <Badge>Bi³⁺</Badge>
+                <Badge>Cd²⁺</Badge>
+                <Badge>Hg²⁺</Badge>
+              </div>
 
-<div className="flex gap-2 flex-wrap mt-2">
-  <Badge>IIB</Badge>
-  <Badge>As³⁺</Badge>
-  <Badge>Sb³⁺</Badge>
-  <Badge>Sn²⁺</Badge>
-  <Badge>Sn⁴⁺</Badge>
-</div>
+              <div className="flex gap-2 flex-wrap mt-2">
+                <Badge>IIB</Badge>
+                <Badge>As³⁺</Badge>
+                <Badge>Sb³⁺</Badge>
+                <Badge>Sn²⁺</Badge>
+                <Badge>Sn⁴⁺</Badge>
+              </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {cationTests.group2.map((test, index) => (
-                <ReactionCard key={index} {...test} />
+              {group2Mapped.map((test) => (
+                <ReactionCard 
+                  key={test.id} 
+                  {...test} 
+                  isBookmarked={isBookmarked(test.id)}
+                  isCompleted={isCompleted(test.id)}
+                  onToggleBookmark={() => toggleBookmark(test.id)}
+                  onToggleCompleted={() => markAsCompleted(test.id)}
+                />
               ))}
             </div>
           </TabsContent>
@@ -324,11 +436,20 @@ export default function App() {
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {cationTests.group3.map((test, index) => (
-                <ReactionCard key={index} {...test} />
+              {group3Mapped.map((test) => (
+                <ReactionCard 
+                  key={test.id} 
+                  {...test} 
+                  isBookmarked={isBookmarked(test.id)}
+                  isCompleted={isCompleted(test.id)}
+                  onToggleBookmark={() => toggleBookmark(test.id)}
+                  onToggleCompleted={() => markAsCompleted(test.id)}
+                />
               ))}
             </div>
           </TabsContent>
+
+          {/* Group IV Cations */}
           <TabsContent value="group4" className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border">
               <h2 className="text-xl font-bold mb-2">Group IV - Zinc Group</h2>
@@ -344,11 +465,19 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {cationTests.group4.map((test, index) => (
-                <ReactionCard key={index} {...test} />
+              {group4Mapped.map((test) => (
+                <ReactionCard 
+                  key={test.id} 
+                  {...test} 
+                  isBookmarked={isBookmarked(test.id)}
+                  isCompleted={isCompleted(test.id)}
+                  onToggleBookmark={() => toggleBookmark(test.id)}
+                  onToggleCompleted={() => markAsCompleted(test.id)}
+                />
               ))}
             </div>
           </TabsContent>
+
           {/* Group V Cations */}
           <TabsContent value="group5" className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border">
@@ -363,11 +492,20 @@ export default function App() {
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {cationTests.group5.map((test, index) => (
-                <ReactionCard key={index} {...test} />
+              {group5Mapped.map((test) => (
+                <ReactionCard 
+                  key={test.id} 
+                  {...test} 
+                  isBookmarked={isBookmarked(test.id)}
+                  isCompleted={isCompleted(test.id)}
+                  onToggleBookmark={() => toggleBookmark(test.id)}
+                  onToggleCompleted={() => markAsCompleted(test.id)}
+                />
               ))}
             </div>
           </TabsContent>
+
+          {/* Group VI Cations */}
           <TabsContent value="group6" className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border">
               <h2 className="text-xl font-bold mb-2">Group VI - Magnesium & Ammonium Group</h2>
@@ -381,11 +519,19 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {cationTests.group6.map((test, index) => (
-                <ReactionCard key={index} {...test} />
+              {group6Mapped.map((test) => (
+                <ReactionCard 
+                  key={test.id} 
+                  {...test} 
+                  isBookmarked={isBookmarked(test.id)}
+                  isCompleted={isCompleted(test.id)}
+                  onToggleBookmark={() => toggleBookmark(test.id)}
+                  onToggleCompleted={() => markAsCompleted(test.id)}
+                />
               ))}
             </div>
           </TabsContent>
+
           {/* Anions */}
           <TabsContent value="anions" className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border">
@@ -402,63 +548,108 @@ export default function App() {
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {anionTests.map((test, index) => (
-                <ReactionCard key={index} {...test} />
+              {anionsMapped.map((test) => (
+                <ReactionCard 
+                  key={test.id} 
+                  {...test} 
+                  isBookmarked={isBookmarked(test.id)}
+                  isCompleted={isCompleted(test.id)}
+                  onToggleBookmark={() => toggleBookmark(test.id)}
+                  onToggleCompleted={() => markAsCompleted(test.id)}
+                />
               ))}
             </div>
-            </TabsContent>
-            <TabsContent value="organic" className="space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border">
-                <h2 className="text-xl font-bold mb-2">Organic Chemistry</h2>
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  All major JEE Organic reactions including substitution, elimination,
-                  oxidation, reduction and named reactions.
-                </p>
-              </div>
-<div className="flex flex-col md:flex-row gap-4">
-  
-  {/* Search */}
-  <input
-    type="text"
-    placeholder="Search reactions..."
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-    className="border rounded-lg px-4 py-2 w-full"
-  />
+          </TabsContent>
 
-  {/* Filter */}
-  <select
-    value={filter}
-    onChange={(e) => setFilter(e.target.value)}
-    className="border rounded-lg px-4 py-2"
-  >
-    <option value="all">All</option>
-    <option value="Haloalkanes">Haloalkanes</option>
-    <option value="Alcohols">Alcohols</option>
-    <option value="Aldehydes/Ketones">Aldehydes/Ketones</option>
-    <option value="Carboxylic Acids">Carboxylic Acids</option>
-    <option value="Amines">Amines</option>
-    <option value="Aromatic">Aromatic</option>
-  </select>
+          {/* Organic Chemistry */}
+          <TabsContent value="organic" className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border">
+              <h2 className="text-xl font-bold mb-2">Organic Chemistry</h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
+                All major JEE Organic reactions including substitution, elimination,
+                oxidation, reduction and named reactions.
+              </p>
+            </div>
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* Search */}
+              <input
+                type="text"
+                placeholder="Search reactions..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="border rounded-lg px-4 py-2 w-full"
+              />
 
-</div>
+              {/* Filter */}
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="border rounded-lg px-4 py-2"
+              >
+                <option value="all">All</option>
+                <option value="Haloalkanes">Haloalkanes</option>
+                <option value="Alcohols">Alcohols</option>
+                <option value="Aldehydes/Ketones">Aldehydes/Ketones</option>
+                <option value="Carboxylic Acids">Carboxylic Acids</option>
+                <option value="Amines">Amines</option>
+                <option value="Aromatic">Aromatic</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {organicsMapped
+                .filter((reaction) => {
+                  const matchesSearch = reaction.title
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase());
+
+                  const matchesFilter =
+                    filter === "all" || reaction.category === filter || !reaction.category;
+
+                  return matchesSearch && matchesFilter;
+                })
+                .map((reaction) => (
+                  <ReactionCard 
+                    key={reaction.id} 
+                    {...reaction} 
+                    isBookmarked={isBookmarked(reaction.id)}
+                    isCompleted={isCompleted(reaction.id)}
+                    onToggleBookmark={() => toggleBookmark(reaction.id)}
+                    onToggleCompleted={() => markAsCompleted(reaction.id)}
+                  />
+                ))}
+            </div>
+          </TabsContent>
+
+          {/* Bookmarks Tab */}
+          <TabsContent value="bookmarks" className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border">
+              <h2 className="text-xl font-bold mb-2">Bookmarked Reactions</h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
+                Your saved reactions for quick revision and review.
+              </p>
+            </div>
+            {allReactions.filter((r) => isBookmarked(r.id)).length === 0 ? (
+              <Card className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <Heart className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                <p className="text-lg font-medium">No bookmarked reactions yet</p>
+                <p className="text-sm mt-1">Click the heart icon on any reaction card to save it here.</p>
+              </Card>
+            ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {organicReactions
-                  .filter((reaction) => {
-                    const matchesSearch = reaction.title
-                      .toLowerCase()
-                      .includes(searchTerm.toLowerCase());
-
-                    const matchesFilter =
-                      filter === "all" || reaction.category === filter || !reaction.category;
-
-                    return matchesSearch && matchesFilter;
-                  })
-                  .map((reaction, index) => (
-                          <ReactionCard key={index} {...reaction} />
-))}
-
-                </div>
+                {allReactions
+                  .filter((reaction) => isBookmarked(reaction.id))
+                  .map((reaction) => (
+                    <ReactionCard 
+                      key={reaction.id} 
+                      {...reaction} 
+                      isBookmarked={true}
+                      isCompleted={isCompleted(reaction.id)}
+                      onToggleBookmark={() => toggleBookmark(reaction.id)}
+                      onToggleCompleted={() => markAsCompleted(reaction.id)}
+                    />
+                  ))}
+              </div>
+            )}
           </TabsContent>
           {/* Tips Tab */}
           <TabsContent value="tips" className="space-y-4">
@@ -536,6 +727,94 @@ export default function App() {
           <p className="mt-2">Best of luck with your JEE preparation!</p>
         </div>
       </footer>
+
+      {/* Settings Modal */}
+      {settingsOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in-0 duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-500" />
+                Profile & Settings
+              </h2>
+              <button 
+                onClick={() => setSettingsOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg font-bold p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* User Details */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">User Account</h3>
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 border border-gray-100 dark:border-gray-800 space-y-1.5">
+                  <div className="text-sm">
+                    <span className="text-gray-500 dark:text-gray-400 mr-2">Email:</span>
+                    <span className="font-semibold text-gray-800 dark:text-white">{user?.email}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-gray-500 dark:text-gray-400 mr-2">User ID:</span>
+                    <span className="font-mono text-xs text-gray-600 dark:text-gray-400">{user?.id}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Daily Goal Settings */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Study Goal</h3>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm text-gray-600 dark:text-gray-300">Daily Practice Target:</label>
+                  <select
+                    value={dailyGoal}
+                    onChange={(e) => setDailyGoal(e.target.value)}
+                    className="border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="3">3 reactions / day (Casual)</option>
+                    <option value="5">5 reactions / day (Standard)</option>
+                    <option value="10">10 reactions / day (Serious)</option>
+                    <option value="20">20 reactions / day (JEE Prep Mode!)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Your current daily target is <strong className="text-blue-500">{dailyGoal}</strong> reactions.
+                  </p>
+                </div>
+              </div>
+
+              {/* Theme Mode Option */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Appearance</h3>
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 border border-gray-100 dark:border-gray-800">
+                  <span className="text-sm text-gray-600 dark:text-gray-300">Dark Interface Theme</span>
+                  <button
+                    onClick={toggleDarkMode}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      darkMode
+                        ? "bg-gray-800 border-gray-700 text-white"
+                        : "bg-white border-gray-200 text-gray-800 hover:bg-gray-50"
+                    }`}
+                  >
+                    {darkMode ? "🌙 Dark Theme Enabled" : "☀️ Light Theme Enabled"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
+              <Button 
+                onClick={() => setSettingsOpen(false)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Save & Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

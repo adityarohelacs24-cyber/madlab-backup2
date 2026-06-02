@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({   // 👈 ADD THIS BLOCK (don’t remove react)
       registerType: 'autoUpdate',
       manifest: {
-        name: 'ChemLab Interactive',
-        short_name: 'ChemLab',
+        name: 'Reacto Interactive',
+        short_name: 'Reacto',
         start_url: '/',
         display: 'standalone',
         background_color: '#0f172a',

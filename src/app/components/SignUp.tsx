@@ -19,6 +19,26 @@ export function SignUp() {
   const navigate = useNavigate();
   const { signUp } = useAuth();
 
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: '', color: 'bg-gray-200', textClass: 'text-gray-400' };
+    let score = 0;
+    if (pass.length >= 6) score += 1;
+    if (pass.length >= 8) score += 1;
+    if (/[A-Z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+
+    if (score <= 2) {
+      return { score, label: 'Weak 🔴', color: 'bg-red-500 w-1/3', textClass: 'text-red-500' };
+    } else if (score <= 4) {
+      return { score, label: 'Medium 🟡', color: 'bg-yellow-500 w-2/3', textClass: 'text-yellow-600 dark:text-yellow-400' };
+    } else {
+      return { score, label: 'Strong 🟢', color: 'bg-green-500 w-full', textClass: 'text-green-600 dark:text-green-400' };
+    }
+  };
+
+  const strength = getPasswordStrength(password);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -36,6 +56,12 @@ export function SignUp() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
+      return;
+    }
+
+    const strengthObj = getPasswordStrength(password);
+    if (strengthObj.score <= 2) {
+      setError('Password is too weak! Please choose a medium or strong password containing uppercase, numbers, and symbols.');
       return;
     }
 
@@ -62,7 +88,7 @@ export function SignUp() {
             <FlaskConical className="w-8 h-8 text-white" />
           </div>
           <h1 className="ml-3 text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            ChemLab
+            Reacto
           </h1>
         </div>
 
@@ -120,6 +146,20 @@ export function SignUp() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
             />
+            {password && (
+              <div className="mt-2 space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500 dark:text-gray-400">Password Strength:</span>
+                  <span className={`font-semibold ${strength.textClass}`}>{strength.label}</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className={`h-full transition-all duration-300 ${strength.color}`}></div>
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  Tip: Use at least 8 characters, numbers, uppercase letters, and symbols.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>

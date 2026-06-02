@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Reacto</string>
+    <string name="title_activity_main">Reacto</string>
+    <string name="package_name">com.reacto.interactive</string>
+    <string name="custom_url_scheme">com.reacto.interactive</string>
+</resources>
