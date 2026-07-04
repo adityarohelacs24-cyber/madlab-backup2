@@ -81,19 +81,19 @@ export function SignUp() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="flex items-center justify-center mb-6">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
-            <FlaskConical className="w-8 h-8 text-white" />
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+      <Card className="glass-card w-full max-w-md p-10 border-0">
+        <div className="flex flex-col items-center justify-center mb-8">
+          <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg shadow-indigo-500/20 mb-4">
+            <FlaskConical className="w-10 h-10 text-white" />
           </div>
-          <h1 className="ml-3 text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-heading font-bold text-gradient tracking-tight">
             Reacto
           </h1>
         </div>
 
-        <h2 className="text-2xl font-bold text-center mb-2">Create Account</h2>
-        <p className="text-gray-600 text-center mb-6">Join us to start learning chemistry</p>
+        <h2 className="text-2xl font-heading font-bold text-center mb-2 text-gray-900 dark:text-white">Create Account</h2>
+        <p className="text-gray-500 dark:text-gray-400 text-center mb-8 font-medium">Join us to start mastering chemistry</p>
 
         {error && (
           <Alert variant="destructive" className="mb-4">
@@ -176,16 +176,16 @@ export function SignUp() {
 
           <Button
             type="submit"
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-300 font-semibold rounded-xl h-11"
             disabled={loading}
           >
             {loading ? 'Creating Account...' : 'Sign Up'}
           </Button>
         </form>
 
-        <p className="text-center text-gray-600 mt-6">
+        <p className="text-center text-gray-500 dark:text-gray-400 mt-8 font-medium">
           Already have an account?{' '}
-          <Link to="/signin" className="text-blue-600 hover:text-blue-700 font-semibold">
+          <Link to="/signin" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-bold transition-colors">
             Sign In
           </Link>
         </p>

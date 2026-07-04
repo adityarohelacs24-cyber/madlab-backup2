@@ -5,6 +5,13 @@ import { organicReactions } from '../app/data/organicReactions';
 /**
  * This script seeds the Supabase reactions table with all reactions from the frontend data.
  * Run this after authentication to populate the database.
+ * 
+ * Column mapping:
+ *   products    -> ReactionContent object (JSONB) — the rich educational module
+ *   observations -> ReactionStep[]  (JSONB)       — animation steps
+ *   equations   -> legacy equation string
+ *   description -> theory text
+ *   precautions -> flame test / category info
  */
 
 export async function seedReactions() {
@@ -15,127 +22,54 @@ export async function seedReactions() {
     let id = 1;
 
     // ========== CATION TESTS ==========
-    // Group 1
-    cationTests.group1.forEach((reaction: any) => {
-      reactionsToInsert.push({
-        id: `cation_group1_${id++}`,
-        title: reaction.title,
-        description: reaction.theory,
-        group_number: 1,
-        category: 'cation',
-        reactants: reaction.cation,
-        products: JSON.stringify(reaction.confirmatoryTests),
-        observations: JSON.stringify(reaction.steps),
-        equations: reaction.equation,
-        precautions: `Flame test: ${reaction.flameTest}`,
-      });
-    });
+    const cationGroups = [
+      { key: 'group1', num: 1 },
+      { key: 'group2', num: 2 },
+      { key: 'group3', num: 3 },
+      { key: 'group4', num: 4 },
+      { key: 'group5', num: 5 },
+      { key: 'group6', num: 6 },
+    ];
 
-    // Group 2
-    id = 1;
-    cationTests.group2.forEach((reaction: any) => {
-      reactionsToInsert.push({
-        id: `cation_group2_${id++}`,
-        title: reaction.title,
-        description: reaction.theory,
-        group_number: 2,
-        category: 'cation',
-        reactants: reaction.cation,
-        products: JSON.stringify(reaction.confirmatoryTests),
-        observations: JSON.stringify(reaction.steps),
-        equations: reaction.equation,
-        precautions: `Flame test: ${reaction.flameTest}`,
-      });
-    });
-
-    // Group 3
-    id = 1;
-    cationTests.group3.forEach((reaction: any) => {
-      reactionsToInsert.push({
-        id: `cation_group3_${id++}`,
-        title: reaction.title,
-        description: reaction.theory,
-        group_number: 3,
-        category: 'cation',
-        reactants: reaction.cation,
-        products: JSON.stringify(reaction.confirmatoryTests),
-        observations: JSON.stringify(reaction.steps),
-        equations: reaction.equation,
-        precautions: `Flame test: ${reaction.flameTest}`,
-      });
-    });
-
-    // Group 4
-    id = 1;
-    cationTests.group4.forEach((reaction: any) => {
-      reactionsToInsert.push({
-        id: `cation_group4_${id++}`,
-        title: reaction.title,
-        description: reaction.theory,
-        group_number: 4,
-        category: 'cation',
-        reactants: reaction.cation,
-        products: JSON.stringify(reaction.confirmatoryTests),
-        observations: JSON.stringify(reaction.steps),
-        equations: reaction.equation,
-        precautions: `Flame test: ${reaction.flameTest}`,
-      });
-    });
-
-    // Group 5
-    id = 1;
-    cationTests.group5.forEach((reaction: any) => {
-      reactionsToInsert.push({
-        id: `cation_group5_${id++}`,
-        title: reaction.title,
-        description: reaction.theory,
-        group_number: 5,
-        category: 'cation',
-        reactants: reaction.cation,
-        products: JSON.stringify(reaction.confirmatoryTests),
-        observations: JSON.stringify(reaction.steps),
-        equations: reaction.equation,
-        precautions: `Flame test: ${reaction.flameTest}`,
-      });
-    });
-
-    // Group 6
-    if (cationTests.group6) {
+    for (const grp of cationGroups) {
       id = 1;
-      cationTests.group6.forEach((reaction: any) => {
+      const reactions = (cationTests as any)[grp.key] as any[];
+      reactions.forEach((reaction: any) => {
         reactionsToInsert.push({
-          id: `cation_group6_${id++}`,
+          id: `cation_group${grp.num}_${id++}`,
           title: reaction.title,
           description: reaction.theory,
-          group_number: 6,
+          group_number: grp.num,
           category: 'cation',
           reactants: reaction.cation,
-          products: JSON.stringify(reaction.confirmatoryTests),
-          observations: JSON.stringify(reaction.steps),
+          // Store the full rich content as JSONB (explicitly pass object, Supabase will serialize)
+          products: reaction.content ? JSON.parse(JSON.stringify(reaction.content)) : null,
+          // Store animation steps as JSONB (ensure proper serialization)
+          observations: reaction.steps ? JSON.parse(JSON.stringify(reaction.steps)) : [],
           equations: reaction.equation,
-          precautions: `Flame test: ${reaction.flameTest}`,
+          precautions: `Flame test: ${reaction.flameTest ?? 'N/A'}`,
         });
       });
     }
 
     // ========== ANION TESTS ==========
-    if (anionTests) {
-      id = 1;
-      anionTests.forEach((reaction: any) => {
-        reactionsToInsert.push({
-          id: `anion_${id++}`,
-          title: reaction.title || reaction.anion,
-          description: reaction.theory || 'Anion identification test',
-          group_number: null,
-          category: 'anion',
-          reactants: reaction.anion,
-          products: JSON.stringify(reaction.confirmatoryTests || []),
-          observations: JSON.stringify(reaction.steps || []),
-          equations: reaction.equation || '',
-          precautions: reaction.precautions || '',
-        });
+    id = 1;
+    anionTests.forEach((reaction: any) => {
+      reactionsToInsert.push({
+        id: `anion_${id++}`,
+        title: reaction.title || reaction.anion,
+        description: reaction.theory || 'Anion identification test',
+        group_number: null,
+        category: 'anion',
+        reactants: reaction.anion,
+        // Store the full rich content as JSONB (explicitly serialize)
+        products: reaction.content ? JSON.parse(JSON.stringify(reaction.content)) : null,
+        // Store animation steps as JSONB (ensure proper serialization)
+        observations: reaction.steps ? JSON.parse(JSON.stringify(reaction.steps)) : [],
+        equations: reaction.equation || '',
+        precautions: reaction.precautions || '',
       });
-    }
+    });
 
     // ========== ORGANIC REACTIONS ==========
     id = 1;
@@ -147,8 +81,10 @@ export async function seedReactions() {
         group_number: null,
         category: 'organic',
         reactants: reaction.category,
-        products: JSON.stringify(reaction.steps || []),
-        observations: JSON.stringify(reaction.steps || []),
+        // Store the full rich content as JSONB (explicitly serialize)
+        products: reaction.content ? JSON.parse(JSON.stringify(reaction.content)) : null,
+        // Store animation steps as JSONB (ensure proper serialization)
+        observations: reaction.steps ? JSON.parse(JSON.stringify(reaction.steps)) : [],
         equations: reaction.equation,
         precautions: reaction.theory,
       });
@@ -160,11 +96,12 @@ export async function seedReactions() {
     const batchSize = 100;
     for (let i = 0; i < reactionsToInsert.length; i += batchSize) {
       const batch = reactionsToInsert.slice(i, i + batchSize);
-      const { error } = await supabase.from('reactions').insert(batch);
+      const { error } = await supabase
+        .from('reactions')
+        .upsert(batch, { onConflict: 'id' });
 
       if (error) {
         console.error(`❌ Error inserting batch ${i / batchSize + 1}:`, error);
-        // Continue with next batch even if one fails
       } else {
         console.log(`✅ Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(reactionsToInsert.length / batchSize)}`);
       }

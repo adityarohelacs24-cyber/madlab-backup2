@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { ReactionCard } from "./components/ReactionCard";
 import { cationTests, anionTests } from "./data/saltAnalysisData";
-import { FlaskConical, TestTube2, Atom, BookOpen, LogOut, User, Heart, CheckCircle2 } from "lucide-react";
+import { FlaskConical, TestTube2, Atom, BookOpen, LogOut, User, Heart, CheckCircle2, Database, RefreshCw } from "lucide-react";
 import { Card } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { organicReactions } from "./data/organicReactions";
 import { useUserProgress } from "../hooks/useUserProgress";
+import { useReactions } from "../hooks/useReactions";
+import { seedReactions } from "../lib/seedReactions";
+import type { ReactionContent } from "./types/chemistry";
 // Custom state-based dropdown menu replaces Radix dropdown to ensure compatibility inside WebView
 
 export default function App() {
@@ -20,6 +23,8 @@ export default function App() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dailyGoal, setDailyGoal] = useState("5");
+  const [seeding, setSeeding] = useState(false);
+  const [seedResult, setSeedResult] = useState<string | null>(null);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -32,18 +37,56 @@ export default function App() {
     isCompleted
   } = useUserProgress();
 
-  // Mapped reactions with consistent IDs
-  const group1Mapped = cationTests.group1.map((r, i) => ({ ...r, id: `cation_group1_${i + 1}` }));
-  const group2Mapped = cationTests.group2.map((r, i) => ({ ...r, id: `cation_group2_${i + 1}` }));
-  const group3Mapped = cationTests.group3.map((r, i) => ({ ...r, id: `cation_group3_${i + 1}` }));
-  const group4Mapped = cationTests.group4.map((r, i) => ({ ...r, id: `cation_group4_${i + 1}` }));
-  const group5Mapped = cationTests.group5.map((r, i) => ({ ...r, id: `cation_group5_${i + 1}` }));
-  const group6Mapped = cationTests.group6.map((r, i) => ({ ...r, id: `cation_group6_${i + 1}` }));
-  const anionsMapped = anionTests.map((r, i) => ({ ...r, id: `anion_${i + 1}` }));
-  const organicsMapped = organicReactions.map((r, i) => ({
+  // ── Database-first loading ───────────────────────────────────────────────
+  const { reactions: dbReactions, loading: dbLoading, error: dbError, getByCategory } = useReactions();
+
+  /**
+   * Normalize a raw Supabase row into the shape ReactionCard expects.
+   * The `products` JSONB column holds the full ReactionContent object;
+   * the `observations` JSONB column holds the ReactionStep array.
+   */
+  const normalizeRow = (row: ReturnType<typeof getByCategory>[number]) => ({
+    id: row.id,
+    title: row.title,
+    cation: row.reactants ?? undefined,
+    anion: row.reactants ?? undefined,
+    theory: row.description ?? undefined,
+    equation: row.equations ?? undefined,
+    // JSONB arrays come back as parsed objects; cast to known types
+    steps: (Array.isArray(row.observations) ? row.observations : []) as any[],
+    confirmatoryTests: undefined as any,
+    category: row.category,
+    group: row.group_number != null ? `Group ${row.group_number}` : undefined,
+    // Rich ReactionContent object stored in `products`
+    content: (row.products && !Array.isArray(row.products)
+      ? row.products
+      : undefined) as ReactionContent | undefined,
+  });
+
+  // Local fallback arrays (used when DB is empty or errored)
+  const localGroup1 = useMemo(() => cationTests.group1.map((r, i) => ({ ...r, id: `cation_group1_${i + 1}` })), []);
+  const localGroup2 = useMemo(() => cationTests.group2.map((r, i) => ({ ...r, id: `cation_group2_${i + 1}` })), []);
+  const localGroup3 = useMemo(() => cationTests.group3.map((r, i) => ({ ...r, id: `cation_group3_${i + 1}` })), []);
+  const localGroup4 = useMemo(() => cationTests.group4.map((r, i) => ({ ...r, id: `cation_group4_${i + 1}` })), []);
+  const localGroup5 = useMemo(() => cationTests.group5.map((r, i) => ({ ...r, id: `cation_group5_${i + 1}` })), []);
+  const localGroup6 = useMemo(() => cationTests.group6.map((r, i) => ({ ...r, id: `cation_group6_${i + 1}` })), []);
+  const localAnions = useMemo(() => anionTests.map((r, i) => ({ ...r, id: `anion_${i + 1}` })), []);
+  const localOrganics = useMemo(() => organicReactions.map((r, i) => ({
     ...r,
     id: `organic_${r.category.replace(/\s+/g, '_').toLowerCase()}_${i + 1}`
-  }));
+  })), []);
+
+  // Use DB data when available, else fall back to local files
+  const usingDB = !dbLoading && !dbError && dbReactions.length > 0;
+
+  const group1Mapped = usingDB ? getByCategory('cation').filter(r => r.group_number === 1).map(normalizeRow) : localGroup1;
+  const group2Mapped = usingDB ? getByCategory('cation').filter(r => r.group_number === 2).map(normalizeRow) : localGroup2;
+  const group3Mapped = usingDB ? getByCategory('cation').filter(r => r.group_number === 3).map(normalizeRow) : localGroup3;
+  const group4Mapped = usingDB ? getByCategory('cation').filter(r => r.group_number === 4).map(normalizeRow) : localGroup4;
+  const group5Mapped = usingDB ? getByCategory('cation').filter(r => r.group_number === 5).map(normalizeRow) : localGroup5;
+  const group6Mapped = usingDB ? getByCategory('cation').filter(r => r.group_number === 6).map(normalizeRow) : localGroup6;
+  const anionsMapped = usingDB ? getByCategory('anion').map(normalizeRow) : localAnions;
+  const organicsMapped = usingDB ? getByCategory('organic').map(normalizeRow) : localOrganics;
 
   const allReactions = [
     ...group1Mapped,
@@ -55,6 +98,24 @@ export default function App() {
     ...anionsMapped,
     ...organicsMapped
   ];
+
+  // ── Seed handler ─────────────────────────────────────────────────────────
+  const handleSeed = async () => {
+    setSeeding(true);
+    setSeedResult(null);
+    try {
+      const result = await seedReactions();
+      if (result.success) {
+        setSeedResult(`✅ Seeded ${result.count} reactions to Supabase! Refreshing…`);
+        // Reload page after short delay so useReactions re-fetches
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        setSeedResult('❌ Seeding failed. Check console for details.');
+      }
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const totalReactions = allReactions.length;
   const completedCount = Array.from(progress.values()).filter(p => p.completed).length;
@@ -76,24 +137,75 @@ export default function App() {
     navigate("/signin");
   };
 
+  // Show a full-page loading spinner while Supabase is fetching
+  if (dbLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900">
+        <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl animate-pulse">
+          <FlaskConical className="w-10 h-10 text-white" />
+        </div>
+        <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 animate-pulse">Loading reactions from Supabase…</p>
+        <p className="text-sm text-gray-400">Connecting to database</p>
+      </div>
+    );
+  }
+
   return (
-<div className="min-h-screen transition-colors duration-300 bg-gradient-to-br from-blue-50 via-white to-purple-50 text-gray-900 dark:bg-none dark:bg-gray-900 dark:text-gray-100">
+<div className="min-h-screen transition-colors duration-500 text-gray-900 dark:text-gray-100 font-sans">
+      {/* DB Status Banner */}
+      {!usingDB && !dbLoading && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/50 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 text-sm font-medium">
+              <Database className="w-4 h-4 shrink-0" />
+              {dbError
+                ? `Database error: ${dbError} — using local data`
+                : 'Database is empty — using local data. Seed Supabase to enable backend-first mode.'}
+            </div>
+            <div className="flex items-center gap-2">
+              {seedResult && (
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{seedResult}</span>
+              )}
+              <button
+                onClick={handleSeed}
+                disabled={seeding}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+              >
+                {seeding ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Database className="w-3.5 h-3.5" />
+                )}
+                {seeding ? 'Seeding…' : 'Seed Database'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {usingDB && (
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800/50 px-4 py-1.5">
+          <div className="max-w-7xl mx-auto flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+            <Database className="w-3.5 h-3.5" />
+            Live data from Supabase ({dbReactions.length} reactions loaded)
+          </div>
+        </div>
+      )}
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-700 shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <header className="glass sticky top-0 z-50 transition-all duration-300">
+        <div className="max-w-7xl mx-auto px-4 py-3">
 <div className="flex items-center justify-between">
 
   {/* LEFT: Logo + Title */}
-  <div className="flex items-center gap-3">
-    <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+  <div className="flex items-center gap-3 cursor-pointer group">
+    <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
       <FlaskConical className="w-6 h-6 text-white" />
     </div>
     <div>
-      <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+      <h1 className="text-2xl font-bold text-gradient font-heading tracking-tight">
         Reacto Interactive
       </h1>
-      <p className="text-sm text-gray-600 dark:text-gray-300">
-        Interactive Chemistry Learning for JEE Students
+      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium tracking-wide">
+        PREMIUM CHEMISTRY LEARNING
       </p>
     </div>
   </div>
@@ -102,21 +214,34 @@ export default function App() {
   <div className="flex items-center gap-3">
     <button
       onClick={toggleDarkMode}
-      className="px-4 py-2 rounded-lg border text-sm 
-                 bg-white text-black 
-                 dark:bg-gray-800 dark:text-white dark:border-gray-600"
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all
+                 bg-white text-gray-700 hover:bg-gray-50 hover:shadow-sm
+                 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
+      title="Toggle Theme"
     >
-      {darkMode ? "☀️ Light" : "🌙 Dark"}
+      {darkMode ? "☀️" : "🌙"}
+      <span className="hidden sm:inline font-medium">{darkMode ? "Light" : "Dark"}</span>
     </button>
 
-    <div className="relative">
+    <button
+      onClick={handleSignOut}
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 text-red-600 transition-all
+                 hover:bg-red-50 hover:border-red-300 hover:shadow-sm
+                 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:border-red-800"
+      title="Sign Out"
+    >
+      <LogOut className="w-4 h-4" />
+      <span className="hidden sm:inline font-medium">Sign Out</span>
+    </button>
+
+    <div className="relative ml-2">
       <Button
         variant="outline"
         size="sm"
-        className="rounded-full w-10 h-10 p-0 overflow-hidden"
+        className="rounded-full w-10 h-10 p-0 overflow-hidden ring-2 ring-transparent hover:ring-blue-500 transition-all duration-300"
         onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
       >
-        <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+        <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-inner">
           <span className="text-white font-semibold text-sm">
             {user?.email?.[0]?.toUpperCase() || "U"}
           </span>
@@ -130,27 +255,30 @@ export default function App() {
             className="fixed inset-0 z-40 cursor-default" 
             onClick={() => setProfileDropdownOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-50 py-1 text-sm text-gray-700 dark:text-gray-200 animate-in fade-in slide-in-from-top-1 duration-100">
-            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700 font-medium truncate text-xs text-gray-500 dark:text-gray-400">
-              {user?.email}
+          <div className="absolute right-0 mt-2 w-56 rounded-xl shadow-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 z-50 py-2 text-sm text-gray-700 dark:text-gray-200 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700 mb-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Signed in as</p>
+              <p className="font-medium truncate text-gray-800 dark:text-gray-100">
+                {user?.email}
+              </p>
             </div>
             <button
               onClick={() => {
                 setProfileDropdownOpen(false);
                 setSettingsOpen(true);
               }}
-              className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer"
+              className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-3 cursor-pointer transition-colors"
             >
               <User className="w-4 h-4 text-gray-400" />
               Profile & Settings
             </button>
-            <hr className="border-gray-100 dark:border-gray-700" />
+            <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
             <button
               onClick={() => {
                 setProfileDropdownOpen(false);
                 handleSignOut();
               }}
-              className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 flex items-center gap-2 cursor-pointer font-semibold"
+              className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 flex items-center gap-3 cursor-pointer font-medium transition-colors"
             >
               <LogOut className="w-4 h-4" />
               Sign Out
@@ -194,53 +322,56 @@ export default function App() {
             <TabsTrigger value="tips" className="flex-none lg:flex-1">Tips</TabsTrigger>
           </TabsList>
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Progress stats card */}
-            <Card className="p-6 bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg border-0">
-              <h2 className="text-2xl font-bold mb-2">Your Learning Progress</h2>
-              <p className="text-blue-100 mb-6">
-                Keep practicing reactions to master JEE Chemistry.
-              </p>
+            <Card className="glass-card p-8 border-0 overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -ml-20 -mb-20"></div>
               
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
-                  <div className="text-3xl font-extrabold">{totalReactions}</div>
-                  <div className="text-xs text-blue-100 font-medium mt-1">Total Reactions</div>
+              <div className="relative z-10">
+                <h2 className="text-3xl font-heading font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">Your Learning Journey</h2>
+                <p className="text-gray-600 dark:text-gray-300 mb-8 font-medium">
+                  Keep practicing reactions to master JEE Chemistry.
+                </p>
+                
+                <div className="grid grid-cols-3 gap-6 mb-8">
+                  <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-5 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-white/40 dark:border-gray-700/50 hover:-translate-y-1 transition-transform duration-300">
+                    <div className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{totalReactions}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-2 uppercase tracking-wider">Total</div>
+                  </div>
+                  <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-5 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-white/40 dark:border-gray-700/50 hover:-translate-y-1 transition-transform duration-300">
+                    <div className="text-4xl font-extrabold text-purple-600 dark:text-purple-400">{completedCount}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-2 uppercase tracking-wider">Completed</div>
+                  </div>
+                  <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-5 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-white/40 dark:border-gray-700/50 hover:-translate-y-1 transition-transform duration-300">
+                    <div className="text-4xl font-extrabold text-pink-500 dark:text-pink-400">{bookmarkedCount}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-2 uppercase tracking-wider">Saved</div>
+                  </div>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
-                  <div className="text-3xl font-extrabold">{completedCount}</div>
-                  <div className="text-xs text-blue-100 font-medium mt-1">Completed</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 text-center">
-                  <div className="text-3xl font-extrabold">{bookmarkedCount}</div>
-                  <div className="text-xs text-blue-100 font-medium mt-1">Bookmarked</div>
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-semibold">
-                  <span>Syllabus Completion</span>
-                  <span>{completionPercentage}%</span>
-                </div>
-                <div className="h-2.5 w-full bg-white/20 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-white transition-all duration-500 ease-out" 
-                    style={{ width: `${completionPercentage}%` }}
-                  ></div>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm font-bold text-gray-700 dark:text-gray-200">
+                    <span className="uppercase tracking-widest text-xs">Syllabus Completion</span>
+                    <span>{completionPercentage}%</span>
+                  </div>
+                  <div className="h-3 w-full bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden shadow-inner">
+                    <div 
+                      className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-1000 ease-out" 
+                      style={{ width: `${completionPercentage}%` }}
+                    ></div>
+                  </div>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-4 hover:shadow-lg transition-shadow cursor-pointer 
-                             bg-white dark:bg-gray-800 
-                             border border-gray-200 dark:border-gray-600">
-              <h2 className="text-2xl font-bold mb-4">Welcome to Reacto</h2>
-              <p className="text-lg opacity-90 mb-4">
+            <Card className="glass-card p-6 border-0 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+              <h2 className="text-2xl font-heading font-bold mb-4">Welcome to Reacto</h2>
+              <p className="text-lg text-gray-600 dark:text-gray-300 mb-6 font-medium">
                 Master Chemical Reactions through interactive visualizations and step-by-step learning.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div
-                  className="bg-white dark:bg-gray-800 rounded-lg p-4 border cursor-pointer"
+                  className="bg-white/60 dark:bg-gray-800/60 rounded-2xl p-6 border border-white/50 dark:border-gray-700/50 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-200 dark:hover:border-indigo-800/50 transition-all duration-300 group"
                   role="button"
                   tabIndex={0}
                   onClick={() => setActiveTab("group1")}
@@ -248,28 +379,28 @@ export default function App() {
                     if (e.key === "Enter" || e.key === " ") setActiveTab("group1");
                   }}
                 >
-  <TestTube2 className="w-8 h-8 mb-2" />
-  <h3 className="font-semibold mb-2">Inorganic Analysis</h3>
-  <p className="text-sm opacity-90">
-    Learn systematic salt analysis and qualitative tests.
-  </p>
-</div>
+                  <TestTube2 className="w-10 h-10 mb-4 text-indigo-500 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-bold text-lg mb-2">Inorganic Analysis</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                    Learn systematic salt analysis and qualitative tests.
+                  </p>
+                </div>
 
-<div
-  className="bg-white dark:bg-gray-800 rounded-lg p-4 border cursor-pointer"
-  role="button"
-  tabIndex={0}
-  onClick={() => setActiveTab("organic")}
-  onKeyDown={(e) => {
-    if (e.key === "Enter" || e.key === " ") setActiveTab("organic");
-  }}
->
-  <Atom className="w-8 h-8 mb-2" />
-  <h3 className="font-semibold mb-2">Organic Reactions</h3>
-  <p className="text-sm opacity-90">
-    Visualize key JEE organic reactions and mechanisms.
-  </p>
-</div>
+                <div
+                  className="bg-white/60 dark:bg-gray-800/60 rounded-2xl p-6 border border-white/50 dark:border-gray-700/50 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 dark:hover:border-purple-800/50 transition-all duration-300 group"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveTab("organic")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") setActiveTab("organic");
+                  }}
+                >
+                  <Atom className="w-10 h-10 mb-4 text-purple-500 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-bold text-lg mb-2">Organic Reactions</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                    Visualize key JEE organic reactions and mechanisms.
+                  </p>
+                </div>
               </div>
             </Card>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import type { ReactionContent, ReactionStep, ConfirmatoryTest } from '../app/types/chemistry';
 
 export interface ReactionData {
   id: string;
@@ -8,8 +9,10 @@ export interface ReactionData {
   group_number: number | null;
   category: string;
   reactants: string | null;
-  products: string | null;
-  observations: string | null;
+  // products column stores the ReactionContent object (or legacy JSON array) as JSONB
+  products: ReactionContent | ConfirmatoryTest[] | null;
+  // observations column stores the ReactionStep array as JSONB
+  observations: ReactionStep[] | null;
   equations: string | null;
   precautions: string | null;
   created_at: string;
